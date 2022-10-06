@@ -19,7 +19,7 @@ export default function BuildList({
     getSteps(build_id);
     setSelectedBuildId(build_id);
     setSelectedIndex(index);
-    getInitialLog(0);
+    //getInitialLog(0);
   };
 
   useEffect(() => setDispalyedBuildIds(buildIds), [buildIds]);

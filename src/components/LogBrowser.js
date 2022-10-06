@@ -12,13 +12,13 @@ import { Toolbar } from "@mui/material";
 const sidebarWidth = "340px";
 
 export default function LogBrowser() {
-  const [stepIds, setStepIds] = useState([]);
+  const [stepIds, setStepIds] = useState([0]);
   const [buildIds, setBuildIds] = useState([]);
   const [logContent, setLogContent] = useState([]);
   const [selectedBuildId, setSelectedBuildId] = useState("");
   const [userPhoto, setUserPhoto] = useState("");
 
-  const [user, loading, error] = useAuthState(auth);
+  const [user, loading /*error*/] = useAuthState(auth);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,11 +26,6 @@ export default function LogBrowser() {
     if (!user) return navigate("/");
     setUserPhoto(user.photoURL);
   }, [user, loading, navigate]);
-
-  useEffect(() => {
-    // Execute this when the page loads
-    getBuildIds();
-  }, []);
 
   const getBuildIds = async () => {
     let build_ids_res = await fetch(
@@ -53,12 +48,23 @@ export default function LogBrowser() {
   };
 
   const getLog = async (step) => {
+    setLogContent(`Loading step ${step}...`);
     let log = await fetch(
       `${process.env.REACT_APP_BACKEND_URL}/api/logs/${selectedBuildId}/${step}`
     );
     let logText = await log.text();
     setLogContent(logText);
   };
+
+  useEffect(() => {
+    if (selectedBuildId === "") return;
+    getLog(0);
+  }, [selectedBuildId]);
+
+  useEffect(() => {
+    // Execute this when the page loads
+    getBuildIds();
+  }, []);
 
   return (
     <CssBaseline>
@@ -96,7 +102,6 @@ export default function LogBrowser() {
               getSteps={getSteps}
               buildIds={buildIds}
               setSelectedBuildId={setSelectedBuildId}
-              getInitialLog={getLog}
             />
           </Box>
           <Box
