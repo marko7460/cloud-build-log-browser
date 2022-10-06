@@ -1,0 +1,10 @@
+runtime: python39
+service: backend
+default_expiration: "5m"
+handlers:
+  - url: /api/steps/.*
+    script: backend/main.py
+  - url: /api/build_ids/
+    script: backend/main.py
+  - url: /api/logs/.*
+    script: backend/main.py

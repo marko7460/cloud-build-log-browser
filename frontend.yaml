@@ -1,0 +1,16 @@
+runtime: nodejs16
+default_expiration: "5m"
+handlers:
+  # - url: /steps/.*
+  #   script: backend/main.py
+  # - url: /build_ids/
+  #   script: backend/main.py
+  # - url: /logs/.*
+  #   script: backend/main.py
+  - url: /(.*\..+)$
+    static_files: build/\1
+    upload: build/(.*\..+)$
+  # Catch all handler to index.html
+  - url: /.*
+    static_files: build/index.html
+    upload: build/index.html
