@@ -8,7 +8,6 @@ import Box from "@mui/system/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import LogViewer from "./LogViewer";
 import { Toolbar } from "@mui/material";
-//import { async } from "@firebase/util";
 
 const sidebarWidth = "340px";
 
@@ -28,13 +27,31 @@ export default function LogBrowser() {
     setUserPhoto(user.photoURL);
   }, [user, loading, navigate]);
 
-  const getSteps = async (id) => {
-    let steps_res = await fetch(
-      `${process.env.REACT_APP_BACKEND_URL}/api/steps/${id}`
-    );
-    let steps = await steps_res.json();
-    setStepIds(steps);
-  };
+  /**
+   * Since we use getSteps in useEffect and getSteps function depends on the
+   * prop "user" we need to wrap it with useCallback in order to prevent compiler
+   * warning. See https://overreacted.io/a-complete-guide-to-useeffect/ for
+   * detailed explanation.
+   */
+  const getSteps = useCallback(
+    async (id) => {
+      if (!user) return;
+      let userInfo = await user.getIdTokenResult(true);
+      let steps_res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/steps/${id}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + userInfo.token,
+          },
+          method: "GET",
+        }
+      );
+      let steps = await steps_res.json();
+      setStepIds(steps);
+    },
+    [user]
+  );
 
   /**
    * Since we use getLog in useEffect and getLog function depends on the
@@ -45,21 +62,39 @@ export default function LogBrowser() {
   const getLog = useCallback(
     async (step) => {
       if (selectedBuildId === "") return;
+      if (!user) return;
       setLogContent(`Loading step ${step}...`);
+      let userInfo = await user.getIdTokenResult(true);
       let log = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/api/logs/${selectedBuildId}/${step}`
+        `${process.env.REACT_APP_BACKEND_URL}/api/logs/${selectedBuildId}/${step}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + userInfo.token,
+          },
+          method: "GET",
+        }
       );
       let logText = await log.text();
       setLogContent(logText);
     },
-    [selectedBuildId]
+    [selectedBuildId, user]
   );
 
   useEffect(() => {
     // Execute this when the page loads
     async function fetchBuildIds() {
+      if (!user) return;
+      let userInfo = await user.getIdTokenResult(true);
       let build_ids_res = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/api/build_ids`
+        `${process.env.REACT_APP_BACKEND_URL}/api/build_ids`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + userInfo.token,
+          },
+          method: "GET",
+        }
       );
       let build_ids = await build_ids_res.json();
       setBuildIds(build_ids);
@@ -69,7 +104,7 @@ export default function LogBrowser() {
       }
     }
     fetchBuildIds();
-  }, []);
+  }, [user, getSteps]);
 
   useEffect(() => {
     getLog(0);

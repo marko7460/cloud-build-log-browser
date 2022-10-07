@@ -47,7 +47,6 @@ app.yaml
 package-lock.json
 package.json
 README.md
-public/
-dataflow/
-backend/
+
+# Idea
 .idea/

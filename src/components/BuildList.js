@@ -4,12 +4,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
-export default function BuildList({
-  getSteps,
-  buildIds,
-  setSelectedBuildId,
-  getInitialLog,
-}) {
+export default function BuildList({ getSteps, buildIds, setSelectedBuildId }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [displayedBuildIds, setDispalyedBuildIds] = useState([]);
   useEffect(() => setDispalyedBuildIds(buildIds), [buildIds]);
@@ -19,7 +14,6 @@ export default function BuildList({
     getSteps(build_id);
     setSelectedBuildId(build_id);
     setSelectedIndex(index);
-    //getInitialLog(0);
   };
 
   useEffect(() => setDispalyedBuildIds(buildIds), [buildIds]);

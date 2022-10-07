@@ -35,7 +35,7 @@ function Copyright(props) {
 const theme = createTheme();
 
 export default function SignIn() {
-  const [user, loading, error] = useAuthState(auth);
+  const [user, loading /*error*/] = useAuthState(auth);
   const navigate = useNavigate();
 
   useEffect(() => {
