@@ -1,13 +1,14 @@
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useNavigate } from "react-router-dom";
 import { auth, logout } from "../firebase";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import ResponsiveAppBar from "./ResponsiveAppBar";
 import BuildList from "./BuildList";
 import Box from "@mui/system/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import LogViewer from "./LogViewer";
 import { Toolbar } from "@mui/material";
+//import { async } from "@firebase/util";
 
 const sidebarWidth = "340px";
 
@@ -27,18 +28,6 @@ export default function LogBrowser() {
     setUserPhoto(user.photoURL);
   }, [user, loading, navigate]);
 
-  const getBuildIds = async () => {
-    let build_ids_res = await fetch(
-      `${process.env.REACT_APP_BACKEND_URL}/api/build_ids`
-    );
-    let build_ids = await build_ids_res.json();
-    setBuildIds(build_ids);
-    if (build_ids.length > 0) {
-      setSelectedBuildId(build_ids[0]);
-      await getSteps(build_ids[0]);
-    }
-  };
-
   const getSteps = async (id) => {
     let steps_res = await fetch(
       `${process.env.REACT_APP_BACKEND_URL}/api/steps/${id}`
@@ -47,24 +36,44 @@ export default function LogBrowser() {
     setStepIds(steps);
   };
 
-  const getLog = async (step) => {
-    setLogContent(`Loading step ${step}...`);
-    let log = await fetch(
-      `${process.env.REACT_APP_BACKEND_URL}/api/logs/${selectedBuildId}/${step}`
-    );
-    let logText = await log.text();
-    setLogContent(logText);
-  };
-
-  useEffect(() => {
-    if (selectedBuildId === "") return;
-    getLog(0);
-  }, [selectedBuildId]);
+  /**
+   * Since we use getLog in useEffect and getLog function depends on the
+   * props we need to wrap it with useCallback in order to prevent compiler
+   * warning. See https://overreacted.io/a-complete-guide-to-useeffect/ for
+   * detailed explanation.
+   */
+  const getLog = useCallback(
+    async (step) => {
+      if (selectedBuildId === "") return;
+      setLogContent(`Loading step ${step}...`);
+      let log = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/logs/${selectedBuildId}/${step}`
+      );
+      let logText = await log.text();
+      setLogContent(logText);
+    },
+    [selectedBuildId]
+  );
 
   useEffect(() => {
     // Execute this when the page loads
-    getBuildIds();
+    async function fetchBuildIds() {
+      let build_ids_res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/build_ids`
+      );
+      let build_ids = await build_ids_res.json();
+      setBuildIds(build_ids);
+      if (build_ids.length > 0) {
+        setSelectedBuildId(build_ids[0]);
+        await getSteps(build_ids[0]);
+      }
+    }
+    fetchBuildIds();
   }, []);
+
+  useEffect(() => {
+    getLog(0);
+  }, [getLog]);
 
   return (
     <CssBaseline>
