@@ -197,6 +197,7 @@ export default function LogBrowser() {
         >
           {loadingLogs ? (
             <Box sx={{ display: "flex", m: 10 }}>
+              <Box sx={{ m: 2 }}>Loading ...</Box>
               <CircularProgress />
             </Box>
           ) : (
