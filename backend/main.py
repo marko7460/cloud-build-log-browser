@@ -11,7 +11,7 @@ from google.cloud import bigquery
 
 import google.auth.transport.requests
 import google.oauth2.id_token
-
+import googleapiclient.discovery
 
 app = flask.Flask(__name__)
 flask_cors.CORS(app)
@@ -31,42 +31,12 @@ def verify_permissions():
         try:
             claims = google.oauth2.id_token.verify_firebase_token(
                 id_token, HTTP_REQUEST, audience=None)
-            print(f"\n\n\nclaims={claims}\n\n\n")
-        except:
+            #print(f"\n\n\nclaims={claims}\n\n\n")
+        except Exception as e:
+            print(f"Error={e}")
             return jsonify(error_message), 401
         if not claims:
             return jsonify(error_message), 401
-
-@app.route("/api/build_ids")
-def get_build_ids():
-    query_job = bigquery_client.query(
-        f"SELECT DISTINCT build_id FROM `{os.environ.get('GOOGLE_CLOUD_PROJECT')}.cloud_build.logs`")
-    build_ids = []
-    try:
-        # Set a timeout because queries could take longer than one minute.
-        results = query_job.result(timeout=60)
-        for row in results:
-            build_ids.append(row.build_id)
-    except concurrent.futures.TimeoutError:
-        return "ERROR", 404
-
-    return jsonify(build_ids), {"Access-Control-Allow-Origin": "*"}
-
-
-@app.route("/api/steps/<build_id>")
-def get_steps(build_id=0):
-    query_job = bigquery_client.query(
-        f"SELECT DISTINCT step_id FROM `{os.environ.get('GOOGLE_CLOUD_PROJECT')}.cloud_build.logs` where build_id = \'{build_id}\'")
-    step_ids = []
-    try:
-        # Set a timeout because queries could take longer than one minute.
-        results = query_job.result(timeout=60)
-        for row in results:
-            step_ids.append(row.step_id)
-    except concurrent.futures.TimeoutError:
-        return "ERROR", 404
-    step_ids.sort()
-    return jsonify(step_ids), {"Access-Control-Allow-Origin": "*"}
 
 @app.route("/api/logs/<build_id>/<step_id>", methods=["GET"])
 def get_log(build_id=0, step_id=0):
@@ -77,11 +47,42 @@ def get_log(build_id=0, step_id=0):
             # Set a timeout because queries could take longer than one minute.
             results = query_job.result(timeout=60)
             for row in results:
-                yield row.log_line + "\n"
+                if row.log_line:
+                    if row.log_line.endswith('\n'):
+                        yield row.log_line
+                    else:
+                        yield row.log_line + "\n"
+                else:
+                    yield '\n'
         except concurrent.futures.TimeoutError:
             yield "ERROR", 404
     return generate(), {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"}
 
+@app.route("/api/builds")
+def get_builds():
+    args = request.args
+    token=args.get('pageToken', None)
+    page_size = args.get('pageSize', 25)
+    res = {
+        'builds': [],
+        'nextPageToken':'',
+    }
+    service = googleapiclient.discovery.build(
+        "cloudbuild", "v1",
+    )
+    req = service.projects().builds().list(
+        projectId='sap-iac-cicd',
+        pageSize=page_size,
+        pageToken=token
+    )
+    try:
+        # Set a timeout because queries could take longer than one minute.
+        res = req.execute()
+
+    except Exception:
+        return "ERROR", 404
+
+    return jsonify(res), {"Access-Control-Allow-Origin": "*"}
 
 if __name__ == "__main__":
     # This is used when running locally only. When deploying to Google App

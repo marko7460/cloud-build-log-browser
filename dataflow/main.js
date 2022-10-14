@@ -14,11 +14,16 @@ function transform(inJson) {
   }
   var insert_id_arr = obj.insertId.split("-");
   var insert_id = parseInt(insert_id_arr[insert_id_arr.length - 1]);
-  var step_arr = obj.labels.build_step.match(/^Step #[0-9]+/);
-  if (step_arr == null) {
-    return "";
+
+  var step_id = 0;
+  if (obj.labels.hasOwnProperty("build_step")) {
+    var step_arr = obj.labels.build_step.match(/^Step #[0-9]+/);
+    if (step_arr == null) {
+      step_id = 0;
+    } else {
+      step_id = step_arr[0].split("#")[1];
+    }
   }
-  var step_id = step_arr[0].split("#")[1];
   step_id = parseInt(step_id);
   var out = {
     build_id: obj.resource.labels.build_id,

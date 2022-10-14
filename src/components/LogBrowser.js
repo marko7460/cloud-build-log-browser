@@ -7,16 +7,22 @@ import BuildList from "./BuildList";
 import Box from "@mui/system/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import LogViewer from "./LogViewer";
-import { Toolbar } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
 
-const sidebarWidth = "340px";
+const sidebarWidth = "440px";
 
 export default function LogBrowser() {
-  const [stepIds, setStepIds] = useState([0]);
-  const [buildIds, setBuildIds] = useState([]);
+  const [builds, setBuilds] = useState([]);
+  const [steps, setSteps] = useState([]);
+  const [nextPageTokens, setNextPageTokens] = useState([]);
   const [logContent, setLogContent] = useState([]);
   const [selectedBuildId, setSelectedBuildId] = useState("");
   const [userPhoto, setUserPhoto] = useState("");
+  const [paginateControl, setPaginateControl] = useState({
+    forward: false,
+    backward: false,
+  });
+  const [loadingLogs, setLoadingLogs] = useState(true);
 
   const [user, loading /*error*/] = useAuthState(auth);
   const navigate = useNavigate();
@@ -28,32 +34,6 @@ export default function LogBrowser() {
   }, [user, loading, navigate]);
 
   /**
-   * Since we use getSteps in useEffect and getSteps function depends on the
-   * prop "user" we need to wrap it with useCallback in order to prevent compiler
-   * warning. See https://overreacted.io/a-complete-guide-to-useeffect/ for
-   * detailed explanation.
-   */
-  const getSteps = useCallback(
-    async (id) => {
-      if (!user) return;
-      let userInfo = await user.getIdTokenResult(true);
-      let steps_res = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/api/steps/${id}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + userInfo.token,
-          },
-          method: "GET",
-        }
-      );
-      let steps = await steps_res.json();
-      setStepIds(steps);
-    },
-    [user]
-  );
-
-  /**
    * Since we use getLog in useEffect and getLog function depends on the
    * props we need to wrap it with useCallback in order to prevent compiler
    * warning. See https://overreacted.io/a-complete-guide-to-useeffect/ for
@@ -63,7 +43,7 @@ export default function LogBrowser() {
     async (step) => {
       if (selectedBuildId === "") return;
       if (!user) return;
-      setLogContent(`Loading step ${step}...`);
+      setLoadingLogs(true);
       let userInfo = await user.getIdTokenResult(true);
       let log = await fetch(
         `${process.env.REACT_APP_BACKEND_URL}/api/logs/${selectedBuildId}/${step}`,
@@ -76,6 +56,7 @@ export default function LogBrowser() {
         }
       );
       let logText = await log.text();
+      setLoadingLogs(false);
       setLogContent(logText);
     },
     [selectedBuildId, user]
@@ -83,11 +64,11 @@ export default function LogBrowser() {
 
   useEffect(() => {
     // Execute this when the page loads
-    async function fetchBuildIds() {
+    async function fetchBuilds() {
       if (!user) return;
       let userInfo = await user.getIdTokenResult(true);
-      let build_ids_res = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/api/build_ids`,
+      let builds_res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/builds?pageSize=25`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -96,70 +77,118 @@ export default function LogBrowser() {
           method: "GET",
         }
       );
-      let build_ids = await build_ids_res.json();
-      setBuildIds(build_ids);
-      if (build_ids.length > 0) {
-        setSelectedBuildId(build_ids[0]);
-        await getSteps(build_ids[0]);
+      let builds = await builds_res.json();
+      setBuilds(builds.builds);
+      if ("nextPageToken" in builds) {
+        setNextPageTokens([builds.nextPageToken]);
+        setPaginateControl({ backward: false, forward: true });
       }
+
+      setSteps(builds.builds[0].steps);
+      setSelectedBuildId(builds.builds[0].id);
     }
-    fetchBuildIds();
-  }, [user, getSteps]);
+    fetchBuilds();
+  }, [user]);
 
   useEffect(() => {
     getLog(0);
-  }, [getLog]);
+  }, [getLog, selectedBuildId]);
+
+  async function paginate(pageSize, page, reset = false) {
+    if (reset) {
+      setNextPageTokens([]);
+    }
+    let userInfo = await user.getIdTokenResult(true);
+    let pageToken = "";
+    if (page > 0) {
+      pageToken = nextPageTokens[page - 1];
+      setPaginateControl({ backward: true, forward: true });
+    } else {
+      setPaginateControl({ backward: false, forward: true });
+    }
+
+    let builds_res = await fetch(
+      `${process.env.REACT_APP_BACKEND_URL}/api/builds?pageSize=${pageSize}&pageToken=${pageToken}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + userInfo.token,
+        },
+        method: "GET",
+      }
+    );
+    if (builds_res.status === 401) {
+      console.log("Retry ?");
+      return;
+    }
+    let builds = await builds_res.json();
+    setBuilds(builds.builds);
+    setSteps(builds.builds[0].steps);
+
+    if ("nextPageToken" in builds) {
+      if (nextPageTokens.length === page || reset) {
+        setNextPageTokens([...nextPageTokens, builds.nextPageToken]);
+      }
+    } else {
+      setPaginateControl({ backward: true, forward: false });
+    }
+  }
 
   return (
     <CssBaseline>
+      <ResponsiveAppBar
+        userPhoto={userPhoto}
+        logout={logout}
+        steps={steps}
+        onStepSelect={getLog}
+      />
       <Box
         sx={{
-          flexDirection: "column",
           display: "flex",
+          direction: "row",
+          width: "100%",
+          height: "100vh",
         }}
       >
-        <ResponsiveAppBar
-          userPhoto={userPhoto}
-          logout={logout}
-          steps={stepIds}
-          onStepSelect={getLog}
-        />
-        <Toolbar></Toolbar>
         <Box
+          className="BuildList"
           sx={{
-            flexDirection: "row",
-            display: "flex",
-            width: "100%",
+            width: sidebarWidth,
+            height: "95%",
+            overflowX: "hidden",
+            position: "relative",
+            zIndex: 200,
+            mt: 1,
           }}
         >
-          <Box
-            sx={{
-              width: sidebarWidth,
-              height: "100vh",
-              overflowX: "hidden",
-              position: "fixed",
-              zIndex: 0,
-              mt: 1,
-            }}
-          >
-            <BuildList
-              getSteps={getSteps}
-              buildIds={buildIds}
-              setSelectedBuildId={setSelectedBuildId}
-            />
-          </Box>
-          <Box
-            sx={{
-              width: "100%",
-              marginLeft: sidebarWidth,
-              height: "100vh",
-              mt: 1,
-            }}
-          >
+          <BuildList
+            buildIds={builds}
+            setSelectedBuildId={setSelectedBuildId}
+            setSteps={setSteps}
+            paginate={paginate}
+            paginateControl={paginateControl}
+          />
+        </Box>
+        <Box
+          className="LogViewer"
+          sx={{
+            width: "80%",
+            height: "95%",
+            overflowX: "hidden",
+            mt: 1,
+            ml: 2,
+          }}
+        >
+          {loadingLogs ? (
+            <Box sx={{ display: "flex", m: 10 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
             <LogViewer logContent={logContent} />
-          </Box>
+          )}
         </Box>
       </Box>
+      {/* </Box> */}
     </CssBaseline>
   );
 }
