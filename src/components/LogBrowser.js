@@ -95,16 +95,21 @@ export default function LogBrowser() {
   }, [getLog, selectedBuildId]);
 
   async function paginate(pageSize, page, reset = false) {
+    // Disable pagination untill the builds are loaded
+    setPaginateControl({ backward: false, forward: false });
+
+    // If we change the rowsPerPage we need to reset nextPageTokens array
     if (reset) {
       setNextPageTokens([]);
     }
     let userInfo = await user.getIdTokenResult(true);
+
     let pageToken = "";
-    if (page > 0) {
-      pageToken = nextPageTokens[page - 1];
-      setPaginateControl({ backward: true, forward: true });
+    if (page === 0) {
+      // This means that we are back to the very first page
+      pageToken = "";
     } else {
-      setPaginateControl({ backward: false, forward: true });
+      pageToken = nextPageTokens[page - 1];
     }
 
     let builds_res = await fetch(
@@ -118,6 +123,7 @@ export default function LogBrowser() {
       }
     );
     if (builds_res.status === 401) {
+      // Handle error use case
       console.log("Retry ?");
       return;
     }
@@ -125,11 +131,21 @@ export default function LogBrowser() {
     setBuilds(builds.builds);
     setSteps(builds.builds[0].steps);
 
+    // Enable buttons once we have the result
+    if (page > 0) {
+      setPaginateControl({ backward: true, forward: true });
+    } else {
+      setPaginateControl({ backward: false, forward: true });
+    }
+
     if ("nextPageToken" in builds) {
+      // Keep adding a pagination token to the nexPageTokens list if the page number is
+      // the same as the lenght of the nextPageTokens array.
       if (nextPageTokens.length === page || reset) {
         setNextPageTokens([...nextPageTokens, builds.nextPageToken]);
       }
     } else {
+      // In case there are no pagination pages then disable forward button
       setPaginateControl({ backward: true, forward: false });
     }
   }

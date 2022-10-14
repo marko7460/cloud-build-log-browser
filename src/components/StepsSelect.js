@@ -22,6 +22,7 @@ function getIcon(status) {
   if (status === "STATUS_UNKNOWN" || "") {
     return <QuestionMarkIcon />;
   }
+  return <QuestionMarkIcon />;
 }
 
 export default function StepsSelect({ steps, onStepSelect }) {
