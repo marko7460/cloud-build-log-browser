@@ -70,7 +70,7 @@ def testUserPermissions(test_user, project_id, organization_id, folder_id):
     bindings = response_projects['bindings'] + response_folders['bindings'] + response_organizations['bindings']
     for binding in bindings:
         if binding['role'] in ALLOWED_ROLES and test_user in binding['members']:
-            print(binding)
+            #print(binding)
             return True
     return False
 
@@ -87,7 +87,7 @@ def verify_permissions():
         try:
             claims = google.oauth2.id_token.verify_firebase_token(
                 id_token, HTTP_REQUEST, audience=None)
-            print(f"\n\n\nclaims={claims}\n\n\n")
+            #print(f"\n\n\nclaims={claims}\n\n\n")
             if not testUserPermissions(
                     f'user:{claims["email"]}',
                     os.environ.get('GOOGLE_CLOUD_PROJECT'),
