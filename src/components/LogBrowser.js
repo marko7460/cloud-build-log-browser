@@ -15,7 +15,7 @@ export default function LogBrowser() {
   const [builds, setBuilds] = useState([]);
   const [steps, setSteps] = useState([]);
   const [nextPageTokens, setNextPageTokens] = useState([]);
-  const [logContent, setLogContent] = useState([]);
+  const [logContent, setLogContent] = useState("");
   const [selectedBuildId, setSelectedBuildId] = useState("");
   const [userPhoto, setUserPhoto] = useState("");
   const [paginateControl, setPaginateControl] = useState({
@@ -55,6 +55,7 @@ export default function LogBrowser() {
           method: "GET",
         }
       );
+
       let logText = await log.text();
       setLoadingLogs(false);
       setLogContent(logText);
@@ -77,6 +78,12 @@ export default function LogBrowser() {
           method: "GET",
         }
       );
+      if (builds_res.status === 401) {
+        // Handle error use case
+        setLoadingLogs(false);
+        setLogContent(await builds_res.text());
+        return;
+      }
       let builds = await builds_res.json();
       setBuilds(builds.builds);
       if ("nextPageToken" in builds) {
@@ -124,7 +131,8 @@ export default function LogBrowser() {
     );
     if (builds_res.status === 401) {
       // Handle error use case
-      console.log("Retry ?");
+      setLoadingLogs(false);
+      setLogContent(await builds_res.text());
       return;
     }
     let builds = await builds_res.json();
