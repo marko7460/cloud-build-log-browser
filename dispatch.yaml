@@ -1,3 +1,0 @@
-dispatch:
-  - url: "sap-iac-cicd.uc.r.appspot.com/api/*"
-    service: backend
