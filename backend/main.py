@@ -1,7 +1,5 @@
 import concurrent.futures
 import os
-import logging
-#logging.basicConfig(level=logging.DEBUG)
 
 import flask
 import flask_cors
@@ -13,8 +11,14 @@ import google.auth.transport.requests
 import google.oauth2.id_token
 import googleapiclient.discovery
 
+
 app = flask.Flask(__name__)
-flask_cors.CORS(app)
+# Set APP_LB_DEBUG environment variable to enable debugging and to allow CORS
+if os.environ.get('APP_LB_DEBUG'):
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    flask_cors.CORS(app)
+
 bigquery_client = bigquery.Client()
 HTTP_REQUEST = google.auth.transport.requests.Request()
 
@@ -48,29 +52,25 @@ ALLOWED_ROLES = [
 ]
 
 
-def testUserPermissions(test_user, project_id, organization_id, folder_id):
+def getAccessControlHeader():
+    if os.environ.get('APP_LB_DEBUG'):
+        return {"Access-Control-Allow-Origin": "*"}
+    else:
+        return {}
+
+
+def testUserPermissions(test_user, project_id):
     service = googleapiclient.discovery.build(
         "cloudresourcemanager", "v3",
     )
     request_projects = service.projects().getIamPolicy(
-            resource=f'projects/{project_id}',
-            body={"options": {"requestedPolicyVersion": 3}},
-    )
-    request_folders = service.folders().getIamPolicy(
-        resource=f'folders/{folder_id}',
-        body={"options": {"requestedPolicyVersion": 3}},
-    )
-    request_organizations = service.organizations().getIamPolicy(
-        resource=f'organizations/{organization_id}',
+        resource=f'projects/{project_id}',
         body={"options": {"requestedPolicyVersion": 3}},
     )
     response_projects = request_projects.execute()
-    response_folders = request_folders.execute()
-    response_organizations = request_organizations.execute()
-    bindings = response_projects['bindings'] + response_folders['bindings'] + response_organizations['bindings']
+    bindings = response_projects['bindings']
     for binding in bindings:
         if binding['role'] in ALLOWED_ROLES and test_user in binding['members']:
-            #print(binding)
             return True
     return False
 
@@ -87,12 +87,10 @@ def verify_permissions():
         try:
             claims = google.oauth2.id_token.verify_firebase_token(
                 id_token, HTTP_REQUEST, audience=None)
-            #print(f"\n\n\nclaims={claims}\n\n\n")
+            # print(f"\n\n\nclaims={claims}\n\n\n")
             if not testUserPermissions(
                     f'user:{claims["email"]}',
                     os.environ.get('GOOGLE_CLOUD_PROJECT'),
-                    os.environ.get('ORGANIZATION_ID'),
-                    os.environ.get('FOLDER_ID')
             ):
                 return jsonify(error_message), 401
         except Exception as e:
@@ -105,7 +103,7 @@ def verify_permissions():
 @app.route("/api/logs/<build_id>/<step_id>", methods=["GET"])
 def get_log(build_id=0, step_id=0):
     query_job = bigquery_client.query(
-        f"SELECT log_line FROM `{os.environ.get('GOOGLE_CLOUD_PROJECT')}.cloud_build.logs` where build_id = '{build_id}'AND step_id={step_id} ORDER BY insert_id")
+        f"SELECT log_line FROM `{os.environ.get('GOOGLE_CLOUD_PROJECT')}.{os.environ.get('DATASET_ID')}.{os.environ.get('TABLE_ID')}` where build_id = '{build_id}'AND step_id={step_id} ORDER BY insert_id")
 
     def generate():
         try:
@@ -121,7 +119,7 @@ def get_log(build_id=0, step_id=0):
                     yield '\n'
         except concurrent.futures.TimeoutError:
             yield "ERROR", 404
-    return generate(), {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"}
+    return generate(), {"Content-Type": "text/plain", **getAccessControlHeader()}
 
 
 @app.route("/api/builds")
@@ -137,7 +135,7 @@ def get_builds():
         "cloudbuild", "v1",
     )
     req = service.projects().builds().list(
-        projectId='sap-iac-cicd',
+        projectId=os.environ.get('GOOGLE_CLOUD_PROJECT'),
         pageSize=page_size,
         pageToken=token
     )
@@ -147,8 +145,7 @@ def get_builds():
 
     except Exception:
         return "ERROR", 404
-
-    return jsonify(res), {"Access-Control-Allow-Origin": "*"}
+    return jsonify(res), {**getAccessControlHeader()}
 
 
 if __name__ == "__main__":

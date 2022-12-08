@@ -1,0 +1,4 @@
+project             = "my-project-id"
+dataflow_subnetwork = "https://www.googleapis.com/compute/v1/projects/my-project-id/regions/us-central1/subnetworks/my_dataflow_subnetwork"
+dataflow_network    = "my_dataflow_vpc"
+dataflow_region     = "us-central1"

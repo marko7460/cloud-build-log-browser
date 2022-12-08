@@ -1,0 +1,16 @@
+# backend.yaml should be populated based on the terraform output
+# After running the terraform code populate this code with the output of the command `terraform output -raw backend_yaml`
+runtime: python39
+service: logbrowserbackend
+default_expiration: "5m"
+service_account: "web-app-backend-sa@smy_project_id.iam.gserviceaccount.com"
+env_variables:
+  DATASET_ID: "cloud_build_logs"
+  TABLE_ID: "logs_copy_test"
+handlers:
+  - url: /api/steps/.*
+    script: main.py
+  - url: /api/build_ids/
+    script: main.py
+  - url: /api/logs/.*
+    script: main.py

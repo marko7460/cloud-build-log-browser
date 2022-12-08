@@ -29,24 +29,10 @@
 
 **pycache**/
 
-# Ignored by the build system
-
-/setup.cfg
-
-# Ignore React specific files
-
-node_modules/
-src/
-App.js
-firebase.js
-index.css
-index.js
-reportWebVitals.js
-.env.local
-app.yaml
-package-lock.json
-package.json
-README.md
+dispatch.yaml
+backend.yaml.example
+requirements.txt
 
 # Idea
+
 .idea/
