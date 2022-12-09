@@ -99,7 +99,12 @@ In the following steps the PROJECT_ID should be the value of the `project` varia
 - Backend code that queries BQ data is in [main.py](backend/main.py)
 - User **authorization** is done in [main.py](backend/main.py). Only users that have at least one of the roles described in the `ALLOWED_ROLES` global variable will be able to see the logs.
 
-### Local Development
+## Ingesting Old Logs
+
+If you want to ingest old logs into the BQ so that you can view them in the app then please have a look at
+[Ingesting old cloud build logs](docs/Ingest_old_logs.md) document.
+
+## Local Development
 
 Frontend:
 

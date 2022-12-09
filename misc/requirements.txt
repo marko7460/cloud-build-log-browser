@@ -1,0 +1,4 @@
+google-auth==2.6.2
+requests==2.27.1
+requests-toolbelt==0.9.1
+google-api-python-client==2.47.0

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "build_id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "step_id",
+    "type": "INTEGER",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "insert_id",
+    "type": "INTEGER",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "log_line",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  }
+]
